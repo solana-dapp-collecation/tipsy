@@ -1,0 +1,229 @@
+<div
+  class="mt-5px js-feed-post-icon-row__container fs-14px text-grey5 d-flex justify-content-between max-width-420px unselectable"
+>
+  <div
+    class="cursor-pointer d-flex align-items-center"
+    (click)="openModal($event)"
+    data-toggle="modal"
+    data-target=".js-feed-post-icon-row__comment-modal"
+  >
+    <i class="icon-reply feed-post-icon-row__icon"></i>
+    <span *ngIf="!hideNumbers">{{ postContent.CommentCount }}</span>
+  </div>
+
+  <div
+    (click)="$event.stopPropagation()"
+    class="btn-group cursor-pointer d-flex align-items-center"
+    dropdown
+    #dropdown="bs-dropdown"
+    [ngClass]="{
+      'fc-green': postContent.PostEntryReaderState ? postContent.PostEntryReaderState.RecloutedByReader : false
+    }"
+  >
+    <a
+      class="link--unstyled"
+      dropdownToggle
+      id="recloutActionsButton"
+      data-toggle="dropdown"
+      aria-haspopup="true"
+      aria-expanded="false"
+    >
+      <i class="icon-repost feed-post-icon-row__icon"></i>
+    </a>
+    <div
+      class="dropdown-menu p-0 fs-12px border background-color-light-grey"
+      style="min-width: 6rem"
+      *dropdownMenu
+      aria-labelledby="recloutActionsButton"
+    >
+      <a
+        *ngIf="sendingRecloutRequest; else recloutOptions"
+        class="dropdown-menu-item d-block p-5px feed-post__dropdown-menu-item"
+      >
+        <div class="fc-muted">Loading...</div>
+      </a>
+      <ng-template #recloutOptions>
+        <a
+          *ngIf="userHasReclouted(); else recloutElseBlock"
+          class="dropdown-menu-item d-block link--unstyled p-5px feed-post__dropdown-menu-item"
+          (click)="_undoReclout($event)"
+        >
+          <i class="icon-repost feed-post-icon-row__icon fs-12px"></i>
+          Hide
+        </a>
+        <ng-template #recloutElseBlock>
+          <a
+            class="dropdown-menu-item d-block link--unstyled p-5px feed-post__dropdown-menu-item"
+            (click)="_reclout($event)"
+          >
+            <i class="icon-repost feed-post-icon-row__icon fs-12px"></i>
+            Reclout
+          </a>
+        </ng-template>
+        <a
+          class="dropdown-menu-item d-block link--unstyled p-5px feed-post__dropdown-menu-item"
+          (click)="openModal($event, true)"
+        >
+          <i class="fas fa-pencil-alt feed-post-icon-row__icon pl-5px" style="font-size: 10px"></i>
+          Quote
+        </a>
+      </ng-template>
+    </div>
+    <span *ngIf="!hideNumbers">{{ postContent.RecloutCount + postContent.QuoteRecloutCount }}</span>
+  </div>
+
+  <div
+    (click)="toggleLike($event)"
+    [ngClass]="{ 'fc-red': postContent.PostEntryReaderState ? postContent.PostEntryReaderState.LikedByReader : false }"
+    class="cursor-pointer d-flex align-items-center"
+  >
+    <i
+      [ngClass]="{
+        is_animating: animateLike,
+        'icon-heart': postContent.PostEntryReaderState ? !postContent.PostEntryReaderState.LikedByReader : true,
+        'icon-heart-fill': postContent.PostEntryReaderState ? postContent.PostEntryReaderState.LikedByReader : false
+      }"
+      (click)="animateLike = !animateLike"
+      class="feed-post-icon-row__icon"
+    ></i>
+    <span *ngIf="!hideNumbers">{{ postContent.LikeCount }}</span>
+  </div>
+
+  <ng-template #popTemplate>
+    <div id="solana-popover" class="m-10px">
+      <div *ngIf="!sendingsolanas">
+        <div class="mb-4" style="font-size: 11.25px">
+          Give a solana.
+          <b>@{{ postContent.ProfileEntryResponse.Username }}</b>
+          will receive the amount shown as
+          <b>a tip</b>
+          from you.
+        </div>
+      </div>
+    </div>
+  </ng-template>
+  <div class="cursor-pointer d-flex align-items-center">
+    <!--Container to hold the bounds for the mobile drag interface-->
+    <div
+      class="solana-mobile-drag-container unselectable"
+      [ngClass]="{
+        'hide-solanas':
+          !globalVars.loggedInUser?.PublicKeyBase58Check ||
+          postContent.ProfileEntryResponse?.PublicKeyBase58Check === globalVars.loggedInUser?.PublicKeyBase58Check
+      }"
+    >
+      <div
+        [ngClass]="{ 'bg-danger': solanaDragCancel, show: solanaDragging }"
+        class="solana-mobile-drag-instructions"
+      >
+        <p class="d-block">
+          {{ !solanaDragMoved ? "<- Slide ->" : solanaDragCancel ? "Release To Cancel" : "Slide Down To Cancel - Release To Confirm" }}
+        </p>
+      </div>
+    </div>
+    <div
+      class="feed-reaction cursor-pointer d-flex align-items-center"
+      (click)="sendOnesolana($event, false)"
+      (mouseover)="addsolanaSelection($event)"
+      (mouseleave)="removesolanaSelection()"
+    >
+      <i
+        class="feed-post-icon-row__icon mr-2"
+        [ngClass]="{
+          'icon-solana': !sendingsolanas,
+          'fas fa-spinner fa-spin': sendingsolanas,
+          'fc-blue': postContent.PostEntryReaderState?.solanaLevelBestowed > 0
+        }"
+        [ngStyle]="{
+          visibility: solanaDragging ? 'hidden' : 'visible'
+        }"
+      ></i>
+      <a
+        [ngClass]="{
+          'dragged-like': solanaDragging,
+          'hide-solanas':
+            !globalVars.loggedInUser?.PublicKeyBase58Check ||
+            postContent.ProfileEntryResponse?.PublicKeyBase58Check === globalVars.loggedInUser?.PublicKeyBase58Check ||
+            sendingsolanas
+        }"
+        class="solana-btn icon-solana"
+        id="solana-button"
+      >
+        <div
+          class="reaction-box"
+          [ngStyle]="{
+            height:
+              !collapsesolanaInfo || (solanaIdxDraggedTo === solanaCount && solanaDragLeftExplainer)
+                ? '121px'
+                : '55px'
+          }"
+        >
+          <div *ngIf="!collapsesolanaInfo || (solanaIdxDraggedTo === solanaCount && solanaDragLeftExplainer)">
+            <ng-container *ngTemplateOutlet="popTemplate"></ng-container>
+          </div>
+          <div
+            *ngFor="let solanaIndex of solanaIndexes"
+            [ngClass]="{ show: solanasVisible[solanaIndex], 'dragged-icon': solanaIdxDraggedTo === solanaIndex }"
+            class="reaction-icon transformable"
+            (click)="onsolanaSelected($event, solanaIndex)"
+            (mouseover)="solanaHovered = solanaIndex"
+            (mouseleave)="solanaHovered = -1"
+          >
+            <label>{{ globalVars.getUSDForsolana(solanaIndex + 1) }}</label>
+            <i
+              class="icon-solana solana-reaction"
+              [ngStyle]="{
+                color:
+                  solanaIndex < getCurrentsolanaLevel() ||
+                  solanaIndex <= this.solanaHovered ||
+                  solanaIndex <= this.solanaIdxDraggedTo
+                    ? 'var(--cblue)'
+                    : 'var(--grey)'
+              }"
+            ></i>
+          </div>
+          <div
+            class="reaction-icon show"
+            (click)="toggleExplainer($event)"
+            (mouseover)="collapsesolanaInfo = false"
+            (mouseleave)="collapsesolanaInfo = true"
+          >
+            <i class="fas fa-info-circle solana-reaction solana-help"></i>
+          </div>
+        </div>
+      </a>
+      <!--Draggable element for mobile drag-selection-->
+      <div
+        (touchstart)="startDrag()"
+        (touchend)="dragClick($event)"
+        (cdkDragEnded)="endDrag($event)"
+        (cdkDragMoved)="duringDrag($event)"
+        class="solana-mobile-drag-grab"
+        [ngClass]="{
+          'hide-solanas':
+            postContent.ProfileEntryResponse?.PublicKeyBase58Check === globalVars.loggedInUser?.PublicKeyBase58Check
+        }"
+        id="solana-mobile-drag-grab"
+        cdkDrag
+      ></div>
+    </div>
+    <span *ngIf="!hideNumbers">{{ postContent.solanaCount }}</span>
+  </div>
+
+  <div class="d-none d-lg-flex cursor-pointer align-items-center">
+    <i
+      class="icon-link js-feed-post-icon-row__copy-post-link-icon feed-post-icon-row__icon"
+      (click)="copyPostLinkToClipboard($event)"
+    ></i>
+    <span
+      class="d-inline-block ml-1 cursor-pointer lh-12px fc-muted align-middle"
+      matTooltipClass="global__mat-tooltip global__mat-tooltip-font-size"
+      mat-raised-button
+      #tooltip="matTooltip"
+      [matTooltip]="globalVars.convertTstampToDateTime(postContent.TimestampNanos)"
+      (auxclick)="onTimestampClickHandler($event)"
+    >
+      {{ globalVars.convertTstampToDaysOrHours(postContent.TimestampNanos) }}
+    </span>
+  </div>
+</div>
