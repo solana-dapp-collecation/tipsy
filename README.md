@@ -1,5 +1,9 @@
 # Tipsy - Solana tipping on BitClout
 
+![Tipsy](SolClout.png)
+
+Status: in development
+
 Tipsy improves upon the existing tipping mechanisms of BitClout
 
 It encourages busking on web3 and incentivizes both tippers and tippees to crowdfund.
